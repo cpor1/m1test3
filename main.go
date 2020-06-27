@@ -1,6 +1,6 @@
 package main
 
 func main() {
-	chanRoutine()
-	goRoutine2()
+	//chanRoutine()
+	goRoutine3()
 }

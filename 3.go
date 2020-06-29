@@ -14,16 +14,16 @@ type DataLine struct {
 }
 
 func printData(chans chan *DataLine, wg *sync.WaitGroup, isClose chan bool) {
-
 	for {
-		data, j := <-chans
-		if j {
+		select {
+		case data := <-chans:
 			log.Printf("Row %v : %v -> done\n", data.indentity, data.content)
 			wg.Done()
-		} else {
-			fmt.Println("Closed")
-			isClose <- true
-			return
+		case x := <-isClose:
+			if x {
+				fmt.Println("close")
+				break
+			}
 		}
 	}
 }
@@ -32,14 +32,16 @@ func goRoutine3() {
 	buffReadData := make(chan *DataLine, 10)
 	defer close(buffReadData)
 	var wg sync.WaitGroup
-	isClose := make(chan bool)
+	isClose := make(map[int](chan bool), 3)
 
 	f, _ := os.Open("file.txt")
 	defer f.Close()
 
-	for i := 1; i <= 3; i++ {
-		go printData(buffReadData, &wg, isClose)
+	for i := 0; i < 3; i++ {
+		isClose[i] = make(chan bool, 1)
+		go printData(buffReadData, &wg, isClose[i])
 	}
+
 	scanner := bufio.NewScanner(f)
 	count := 1
 	for scanner.Scan() {
@@ -48,5 +50,10 @@ func goRoutine3() {
 		buffReadData <- dataLine
 		wg.Add(1)
 	}
+
 	wg.Wait()
+
+	for _, ch := range isClose {
+		ch <- true
+	}
 }
